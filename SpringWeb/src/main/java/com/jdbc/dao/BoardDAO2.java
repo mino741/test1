@@ -1,0 +1,216 @@
+package com.jdbc.dao;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+
+import com.jdbc.dto.BoardDTO;
+
+public class BoardDAO2 {
+	
+	private JdbcTemplate jdbcTemplate;
+	
+	public void setJdbcTemplate(JdbcTemplate jdbcTemplate){
+		this.jdbcTemplate = jdbcTemplate;
+	}
+	
+	//num의 최대값
+	public int getMaxNum() {
+		
+		int maxNum = 0;
+		
+		StringBuilder sql = new StringBuilder();
+		
+		sql.append("select nvl(max(num),0) from board");
+		
+		maxNum = jdbcTemplate.queryForInt(sql.toString());
+		
+		return maxNum;
+	}
+	
+	
+	//입력
+	public void insertData(BoardDTO dto) {
+		
+		StringBuilder sql = new StringBuilder();
+		
+		//append는 누적 속성, 대신 이렇게 하나의 문장으로 표현 가능
+		sql.append("insert into board (num,name,pwd,email,subject,")
+		.append("content,ipAddr,hitCount,created) ")
+		.append("values (?,?,?,?,?,?,?,0,sysdate)");
+	
+		jdbcTemplate.update(sql.toString(),
+				dto.getNum(),dto.getName(),dto.getPwd(),dto.getEmail(),
+				dto.getSubject(),dto.getContent(),dto.getIpAddr());
+		
+	}
+	
+	
+	//전체 데이터 갯수
+	public int getDataCount(String searchKey, String searchValue) {
+		
+		int totalCount = 0;
+		StringBuilder sql = new StringBuilder(200); //크기 지정도 가능, 200자 이내
+		
+		searchValue = "%" + searchValue + "%";
+			
+		sql.append("select nvl(count(*),0) from board ")
+		.append("where " + searchKey + " like ?");
+			
+		totalCount = jdbcTemplate.queryForInt(sql.toString(),searchValue);
+		
+		return totalCount;
+	}
+	
+	
+	
+	//전체 데이터 가져오기
+	
+	public List<BoardDTO> getLists(int start, int end,
+			String searchKey, String searchValue){
+		
+		StringBuilder sql = new StringBuilder();
+		
+		searchValue = "%" + searchValue + "%";
+			
+		sql.append("select * from (");
+		sql.append("select rownum rnum, data.* from (");
+		sql.append("select num,name,subject,hitCount, ");
+		sql.append("to_char(created,'YYYY-MM-DD') created ");
+		sql.append("from board where " + searchKey + " like ? ");
+		sql.append("order by num desc) data) ");
+		sql.append("where rnum>=? and rnum<=?");
+			
+		
+		List<BoardDTO> lists = 
+				jdbcTemplate.query(sql.toString(),
+						new Object[] {searchValue,start,end},
+						new RowMapper<BoardDTO>(){
+
+							@Override
+							public BoardDTO mapRow(ResultSet rs, int rowNum)
+									throws SQLException {
+								
+								BoardDTO dto = new BoardDTO();
+								
+								dto.setNum(rs.getInt("num"));
+								dto.setName(rs.getString("name"));
+								dto.setSubject(rs.getString("subject"));
+								dto.setHitCount(rs.getInt("hitCount"));
+								dto.setCreated(rs.getString("created"));
+								
+								return dto;
+							
+							}
+					
+						});
+		
+		return lists;
+	}
+	
+	
+	//조회수 증가
+	
+	public void updateHitCount(int num) {
+		
+		StringBuilder sql = new StringBuilder();
+			
+		sql.append("update board set hitCount=hitCount+1 where num=?");
+		
+		jdbcTemplate.update(sql.toString(),num);
+
+	}
+	
+	
+	//num으로 한개의 데이터 읽기
+	
+	public BoardDTO getReadData(int num) {
+		
+		StringBuilder sql = new StringBuilder();
+		
+		sql.append("select num,name,pwd,email,subject,content,ipAddr,")
+		.append("hitCount,created from board where num=?");
+		
+		
+		BoardDTO dtoOne = 
+				jdbcTemplate.queryForObject(sql.toString(),
+						new RowMapper<BoardDTO>() {
+
+							@Override
+							public BoardDTO mapRow(ResultSet rs, int rowNum)
+									throws SQLException {
+								
+								BoardDTO dto = new BoardDTO();
+								
+								dto.setNum(rs.getInt("num"));
+								dto.setName(rs.getString("name"));
+								dto.setPwd(rs.getString("pwd"));
+								dto.setEmail(rs.getString("email"));
+								dto.setSubject(rs.getString("subject"));
+								dto.setContent(rs.getString("content"));
+								dto.setIpAddr(rs.getString("ipAddr"));
+								dto.setHitCount(rs.getInt("hitCount"));
+								dto.setCreated(rs.getString("created"));
+								
+								return dto;
+							}
+				},num);
+	
+		return dtoOne;
+		
+	}
+	
+	
+	public void updateData(BoardDTO dto) {
+		
+		StringBuilder sql = new StringBuilder();
+		
+		sql.append("update board set name=?,pwd=?,email=?,")
+		.append("subject=?,content=? where num=?");
+			
+		jdbcTemplate.update(sql.toString(),
+				dto.getName(),dto.getPwd(),dto.getEmail(),
+				dto.getSubject(),dto.getContent(),dto.getNum());
+		
+	}
+	
+	
+	public void deleteData(int num) {
+		
+		StringBuilder sql = new StringBuilder();
+		
+		sql.append("delete board where num=?");
+			
+		jdbcTemplate.update(sql.toString(),num);
+		
+	}
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
